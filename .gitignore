@@ -1,16 +1,13 @@
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-.pytest_cache/
-.mypy_cache/
+# VS Code extension
+vscode-extension/node_modules/
+vscode-extension/dist/
+vscode-extension/.vscode-test/
 
-# Environment files
-.env
-aws_commands.yaml
-
-# Jupyter
-.ipynb_checkpoints/
+# Python backend
+python-backend/.venv/
+python-backend/__pycache__/
+python-backend/.pytest_cache/
+python-backend/.mypy_cache/
 
 # General
 .DS_Store

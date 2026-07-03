@@ -1,26 +1,38 @@
+<div align="center">
+
+<img src="https://cdn.simpleicons.org/amazonaws/FF9900" alt="AWS" width="64" height="64" />
+<img src="https://cdn.simpleicons.org/python/3776AB" alt="Python" width="64" height="64" />
+<img src="https://cdn.simpleicons.org/postgresql/336791" alt="PostgreSQL" width="64" height="64" />
+
 # 1IB_AWS_DataQuery_xtension
 
-Simple Python-first AWS data query workflow for VS Code.
+### Fast, lightweight AWS data querying for Redshift and S3 in VS Code
 
-No VS Code extension is required for this workflow.
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![AWS](https://img.shields.io/badge/AWS-SSO%20%2B%20SSM-FF9900?style=for-the-badge&logo=amazonaws&logoColor=white)
+![Redshift](https://img.shields.io/badge/Redshift-Query-8C4FFF?style=for-the-badge&logo=amazonredshift&logoColor=white)
+![S3](https://img.shields.io/badge/S3-Data%20Preview-569A31?style=for-the-badge&logo=amazons3&logoColor=white)
+![DuckDB](https://img.shields.io/badge/DuckDB-SQL%20on%20Files-FFF000?style=for-the-badge&logo=duckdb&logoColor=black)
 
-This project is intentionally lightweight:
-- keep AWS login and tunnel commands in .env
-- run AWS commands manually in terminal
-- run SQL/S3 queries from Python scripts or notebook-style cells
-- get results as pandas DataFrames or printed tables
+</div>
 
-## Features
+## What This Project Does
 
-- Environment-driven Redshift config from .env
-- Manual SSO and SSM command storage in .env
-- Redshift query helpers in Python
-- Run SQL text from terminal
-- S3 list/preview/query helpers (CSV/JSON/Parquet)
-- DuckDB support for SQL over S3 paths
-- Example Python and notebook-style files
+This project is intentionally simple and terminal-first:
+- Stores AWS login and tunnel command strings in `.env` and YAML
+- Runs AWS SSO and SSM commands manually (or step-by-step from YAML)
+- Queries Redshift and S3 with small Python CLI scripts
+- Returns clean pandas DataFrames for scripts and notebooks
 
-## 5-minute quickstart
+## Feature Highlights
+
+- Config-driven Redshift connection by environment (`REDSHIFT_ENV`)
+- One-by-one AWS command runner from `aws_commands.yaml`
+- Direct Redshift SQL execution from CLI
+- S3 preview and S3 SQL querying (CSV/JSON/Parquet)
+- Notebook support with ready-to-run `.ipynb` example
+
+## 5-Minute Quickstart
 
 ```bash
 python3 -m venv .venv
@@ -33,7 +45,7 @@ python scripts/run_aws_commands.py --file aws_commands.yaml --name ssm_data_anal
 python scripts/run_redshift_query.py --env data_analyst_dev --sql "select current_date"
 ```
 
-## Project structure
+## Project Layout
 
 ```text
 1IB_AWS_DataQuery_xtension/
@@ -56,11 +68,10 @@ python scripts/run_redshift_query.py --env data_analyst_dev --sql "select curren
     data_query_notebook.ipynb
 ```
 
-## Step-by-step setup (first time)
+## First-Time Setup
 
-1. Open the project folder in VS Code.
-
-2. Create and activate virtual environment.
+1. Open this folder in VS Code.
+2. Create a virtual environment and activate it.
 
 ```bash
 python3 -m venv .venv
@@ -73,84 +84,69 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. Create .env from template.
+4. Create local config files.
 
 ```bash
 cp .env.example .env
+cp aws_commands.yaml.example aws_commands.yaml
 ```
 
-5. Edit .env with your real values.
-Required values are per environment:
-- REDSHIFT_HOST_<ENV>
-- REDSHIFT_PORT_<ENV>
-- REDSHIFT_DB_<ENV>
-- REDSHIFT_USER_<ENV>
-- REDSHIFT_PASSWORD_<ENV>
-- REDSHIFT_SCHEMA_<ENV>
+5. Fill `.env` values for your environment.
 
-6. Set default query environment in .env.
+Required Redshift keys:
+- `REDSHIFT_HOST_<ENV>`
+- `REDSHIFT_PORT_<ENV>`
+- `REDSHIFT_DB_<ENV>`
+- `REDSHIFT_USER_<ENV>`
+- `REDSHIFT_PASSWORD_<ENV>`
+- `REDSHIFT_SCHEMA_<ENV>`
+
+6. Set default environment in `.env`.
 
 ```dotenv
 REDSHIFT_ENV=data_analyst_dev
 ```
 
-7. Create AWS command YAML file.
+## AWS Login And Tunnel Flow
 
-```bash
-cp aws_commands.yaml.example aws_commands.yaml
-```
+Run in this order:
+1. AWS SSO login
+2. SSM tunnel command
+3. Data query script
 
-Edit aws_commands.yaml with the exact AWS commands your team uses.
-
-## Manual AWS flow (required)
-
-Important:
-- .env only stores command strings.
-- .env never executes commands automatically.
-- You must run login and tunnel commands manually in terminal.
-
-1. Login with AWS SSO.
+Manual SSO example:
 
 ```bash
 aws sso login --sso-session infoblox
 ```
 
-2. Start the required tunnel for your environment.
-Use the command string from .env, for example:
+Manual SSM tunnel example:
 
 ```bash
 aws ssm --profile data-analyst-dev --region us-east-1 start-session --target i-0e8761941fc57c652 --document-name AWS-StartPortForwardingSession --parameters portNumber=54391,localPortNumber=54391
 ```
 
-Keep this tunnel terminal open while querying.
-
-3. Verify local tunnel port is open (optional but recommended).
+Optional tunnel check:
 
 ```bash
 nc -zv localhost 54391
 ```
 
-## Run AWS commands from YAML (one-by-one)
+## AWS Command Runner (YAML)
 
-This helper runs saved AWS commands sequentially with confirmation.
-
-Recommended order for a fresh session:
-1. `sso_login`
-2. one `ssm_*` command for the environment you want
-
-List available commands:
+List commands:
 
 ```bash
 python scripts/run_aws_commands.py --file aws_commands.yaml
 ```
 
-Run one command by name:
+Run one command:
 
 ```bash
 python scripts/run_aws_commands.py --file aws_commands.yaml --name sso_login
 ```
 
-Run all commands in order (asks confirmation for each):
+Run all commands in order:
 
 ```bash
 python scripts/run_aws_commands.py --file aws_commands.yaml --all
@@ -162,49 +158,29 @@ Run all without confirmation:
 python scripts/run_aws_commands.py --file aws_commands.yaml --all --yes
 ```
 
-Preview commands without executing:
+Dry run preview:
 
 ```bash
 python scripts/run_aws_commands.py --file aws_commands.yaml --all --dry-run
 ```
 
-## Daily usage workflow
-
-1. Activate virtual environment.
-
-```bash
-source .venv/bin/activate
-```
-
-2. Ensure AWS login is active.
-
-```bash
-aws sso login --sso-session infoblox
-```
-
-3. Start SSM tunnel for your target environment.
-
-4. Run queries using one of the methods below.
-
-5. Keep the SSM tunnel terminal running while you execute queries.
-
-## Run Redshift SQL text
+## Query Redshift
 
 ```bash
 python scripts/run_redshift_query.py --env data_analyst_dev --sql "select current_date"
 ```
 
-Optional CSV export:
+With CSV export:
 
 ```bash
 python scripts/run_redshift_query.py --env data_analyst_dev --sql "select * from your_table limit 100" --csv output.csv
 ```
 
-If --env is omitted, REDSHIFT_ENV from .env is used.
+If `--env` is omitted, `REDSHIFT_ENV` from `.env` is used.
 
-## S3 data preview/query
+## Query S3
 
-Preview file directly:
+Preview file:
 
 ```bash
 python scripts/run_s3_query.py --path s3://your-bucket/path/file.parquet --preview --limit 20
@@ -216,110 +192,77 @@ Query with DuckDB SQL:
 python scripts/run_s3_query.py --path s3://your-bucket/path/file.parquet --sql "select * from read_parquet('s3://your-bucket/path/file.parquet') limit 20"
 ```
 
-Save S3 output to CSV:
+Export S3 output to CSV:
 
 ```bash
 python scripts/run_s3_query.py --path s3://your-bucket/path/file.parquet --preview --csv s3_preview.csv
 ```
 
-## Use as Python module
+## Notebook Usage
 
-Example Redshift query in Python:
+- Python cell notebook-style script: [examples/notebook_example.py](examples/notebook_example.py)
+- Real Jupyter notebook: [examples/data_query_notebook.ipynb](examples/data_query_notebook.ipynb)
 
-```python
-from src.redshift_client import run_redshift_query
+## Environment Variables
 
-df = run_redshift_query("select current_date as run_date", env_name="data_analyst_dev")
-print(df)
-```
+AWS command storage:
+- `AWS_SSO_LOGIN_CMD`
+- `AWS_SSM_CMD_DATA_ANALYST_DEV`
+- `AWS_SSM_CMD_DATA_QA_DEV`
+- `AWS_SSM_CMD_DATA_ANALYST_PREPROD`
 
-Example S3 usage in Python:
+Redshift selector:
+- `REDSHIFT_ENV`
 
-```python
-from src.s3_client import read_s3_file, query_s3_path
+Redshift values:
+- `REDSHIFT_HOST_<ENV>`
+- `REDSHIFT_PORT_<ENV>`
+- `REDSHIFT_DB_<ENV>`
+- `REDSHIFT_USER_<ENV>`
+- `REDSHIFT_PASSWORD_<ENV>`
+- `REDSHIFT_SCHEMA_<ENV>`
 
-df_preview = read_s3_file("s3://your-bucket/path/file.parquet", limit=20)
-df_sql = query_s3_path(
-    "s3://your-bucket/path/file.parquet",
-    sql="select * from read_parquet('s3://your-bucket/path/file.parquet') limit 20"
-)
-```
-
-## Notebook-style usage in VS Code
-
-Open [examples/notebook_example.py](examples/notebook_example.py) and run # %% cells with the Python/Jupyter extension.
-
-For a real Jupyter notebook, open [examples/data_query_notebook.ipynb](examples/data_query_notebook.ipynb). It includes direct Redshift and S3 query cells.
-
-## Environment variable reference
-
-### AWS command storage
-
-- AWS_SSO_LOGIN_CMD
-- AWS_SSM_CMD_DATA_ANALYST_DEV
-- AWS_SSM_CMD_DATA_QA_DEV
-- AWS_SSM_CMD_DATA_ANALYST_PREPROD
-
-### Redshift default selector
-
-- REDSHIFT_ENV
-
-### Redshift per environment
-
-- REDSHIFT_HOST_<ENV>
-- REDSHIFT_PORT_<ENV>
-- REDSHIFT_DB_<ENV>
-- REDSHIFT_USER_<ENV>
-- REDSHIFT_PASSWORD_<ENV>
-- REDSHIFT_SCHEMA_<ENV>
-
-### S3 defaults
-
-- AWS_REGION
-- AWS_PROFILE
-- S3_DEFAULT_BUCKET
-- S3_DEFAULT_PREFIX
-- DEFAULT_ROW_LIMIT
+S3 defaults:
+- `AWS_REGION`
+- `AWS_PROFILE`
+- `S3_DEFAULT_BUCKET`
+- `S3_DEFAULT_PREFIX`
+- `DEFAULT_ROW_LIMIT`
 
 ## Troubleshooting
 
-### .env not found or missing keys
-- Symptom: config errors for REDSHIFT_* variables
-- Fix: copy .env.example to .env and fill values carefully
+`.env` missing keys:
+- Symptom: config errors for `REDSHIFT_*`
+- Fix: copy `.env.example` to `.env` and fill all keys
 
-### Redshift connection refused
+Redshift connection refused:
 - Symptom: localhost port connection failure
-- Fix: ensure SSM tunnel is running and localPortNumber matches REDSHIFT_PORT_<ENV>
+- Fix: ensure SSM tunnel is running and port matches `REDSHIFT_PORT_<ENV>`
 
-### AWS login expired
-- Symptom: permission/auth errors for S3 or SSM
-- Fix: rerun aws sso login --sso-session infoblox
+AWS login expired:
+- Symptom: S3/SSM auth errors
+- Fix: run `aws sso login --sso-session infoblox`
 
-### Query fails due to permissions
-- Symptom: Redshift or S3 access denied
-- Fix: verify AWS profile permissions and target resources
+Module import error:
+- Symptom: `ModuleNotFoundError`
+- Fix: activate `.venv` and run `pip install -r requirements.txt`
 
-### Missing package error
-- Symptom: ModuleNotFoundError
-- Fix: activate .venv and run pip install -r requirements.txt
+Unsupported S3 format:
+- Symptom: preview/query errors for file type
+- Fix: use CSV, JSON, or Parquet inputs
 
-### Unsupported S3 format
-- Symptom: read_s3_file/query error for file type
-- Fix: use CSV, JSON, or Parquet paths
-
-## Quick test commands
+## Quick Health Check
 
 ```bash
 python scripts/run_redshift_query.py --sql "select current_date"
 python scripts/run_s3_query.py --path s3://your-bucket/path/file.parquet --preview --limit 5
 ```
 
-## Team onboarding checklist
+## Developer
 
-1. Clone or open this folder in VS Code.
-2. Create `.venv` and install dependencies.
-3. Copy `.env.example` to `.env` and fill values.
-4. Copy `aws_commands.yaml.example` to `aws_commands.yaml` and adjust command strings.
-5. Run SSO login command.
-6. Run one SSM tunnel command for your chosen environment.
-7. Run `scripts/run_redshift_query.py`.
+<div align="left">
+
+<img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/github.svg" alt="GitHub" width="18" height="18" /> Krishna K  
+<img src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/gmail.svg" alt="Email" width="18" height="18" /> kkrishna@infoblox.com
+
+</div>
