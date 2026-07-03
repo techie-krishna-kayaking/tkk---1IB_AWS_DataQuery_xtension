@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+
+# Environment files
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# General
+.DS_Store
+*.log
