@@ -7,6 +7,7 @@ __pycache__/
 
 # Environment files
 .env
+aws_commands.yaml
 
 # Jupyter
 .ipynb_checkpoints/
