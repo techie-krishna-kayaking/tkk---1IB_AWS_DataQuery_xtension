@@ -1,6 +1,5 @@
 <div align="center">
 
-<img src="https://cdn.simpleicons.org/amazonaws/FF9900" alt="AWS" width="64" height="64" />
 <img src="https://cdn.simpleicons.org/python/3776AB" alt="Python" width="64" height="64" />
 <img src="https://cdn.simpleicons.org/postgresql/336791" alt="PostgreSQL" width="64" height="64" />
 

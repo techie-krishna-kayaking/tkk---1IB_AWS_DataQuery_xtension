@@ -12,3 +12,8 @@ python-backend/.mypy_cache/
 # General
 .DS_Store
 *.log
+
+# Local env and Python caches
+.env
+__pycache__/
+*.pyc
