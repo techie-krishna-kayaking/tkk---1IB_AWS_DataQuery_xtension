@@ -20,13 +20,14 @@
 
 This project is intentionally simple and terminal-first:
 - Stores AWS login and tunnel command strings in `.env` and YAML
-- Runs AWS SSO and SSM commands manually (or step-by-step from YAML)
+- Supports one-command AWS SSO + SSM tunnel setup
 - Queries Redshift and S3 with small Python CLI scripts
 - Returns clean pandas DataFrames for scripts and notebooks
 
 ## Feature Highlights
 
 - Config-driven Redshift connection by environment (`REDSHIFT_ENV`)
+- Single-command Redshift connect helper (`scripts/connect_redshift.py`)
 - One-by-one AWS command runner from `aws_commands.yaml`
 - Direct Redshift SQL execution from CLI
 - S3 preview and S3 SQL querying (CSV/JSON/Parquet)
@@ -39,9 +40,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-cp aws_commands.yaml.example aws_commands.yaml
-python scripts/run_aws_commands.py --file aws_commands.yaml --name sso_login
-python scripts/run_aws_commands.py --file aws_commands.yaml --name ssm_data_analyst_dev
+python3 scripts/connect_redshift.py --env data_analyst_dev
 python scripts/run_redshift_query.py --env data_analyst_dev --sql "select current_date"
 ```
 
@@ -53,6 +52,7 @@ python scripts/run_redshift_query.py --env data_analyst_dev --sql "select curren
   requirements.txt
   README.md
   scripts/
+    connect_redshift.py
     run_redshift_query.py
     run_s3_query.py
     run_aws_commands.py
@@ -108,6 +108,35 @@ REDSHIFT_ENV=data_analyst_dev
 ```
 
 ## AWS Login And Tunnel Flow
+
+Single command flow (recommended):
+
+```bash
+python3 scripts/connect_redshift.py --env data_analyst_dev
+```
+
+This command will:
+1. Run AWS SSO login
+2. Start the correct SSM tunnel for the selected environment
+
+Keep that terminal open, then run notebook/query commands in a second terminal.
+
+Available environments:
+- `data_analyst_dev`
+- `data_qa_dev`
+- `data_analyst_preprod`
+
+Use default env from `.env`:
+
+```bash
+python3 scripts/connect_redshift.py
+```
+
+List configured tunnel environments:
+
+```bash
+python3 scripts/connect_redshift.py --list
+```
 
 Run in this order:
 1. AWS SSO login
@@ -202,6 +231,43 @@ python scripts/run_s3_query.py --path s3://your-bucket/path/file.parquet --previ
 
 - Python cell notebook-style script: [examples/notebook_example.py](examples/notebook_example.py)
 - Real Jupyter notebook: [examples/data_query_notebook.ipynb](examples/data_query_notebook.ipynb)
+
+Recommended notebook flow:
+1. Run one terminal command and keep it open:
+
+```bash
+python3 scripts/connect_redshift.py --env data_analyst_dev
+```
+
+2. Open and run setup cells in [examples/data_query_notebook.ipynb](examples/data_query_notebook.ipynb).
+3. Edit only the SQL text in the Redshift query cell and run it.
+
+### Multiple Redshift Instances In Notebook
+
+You can run the same query across one or many Redshift instances from the same notebook.
+
+1. Start one tunnel per instance in separate terminals.
+
+```bash
+python3 scripts/connect_redshift.py --env data_analyst_dev
+python3 scripts/connect_redshift.py --env data_analyst_preprod
+```
+
+2. In Cell 3 of [examples/data_query_notebook.ipynb](examples/data_query_notebook.ipynb), set `target_envs`:
+- `"auto"`: auto-detect active tunnel envs and use them
+- `"all"`: run against all configured envs
+- `"data_analyst_preprod"`: run against one env
+- `["data_analyst_dev", "data_analyst_preprod"]`: run against selected envs
+
+3. Run Cell 4 (connection test).
+- It shows a status table per env (`SUCCESS` or `FAILED`).
+
+4. Run Cell 5 (main SQL query).
+- In multi-env mode, results are combined with an `_env` column so you can identify source instance.
+
+Important:
+- If two env names point to the same tunnel/port (for example `preprod` and `data_analyst_preprod`), `"auto"` may include both and produce duplicate rows.
+- To avoid duplicates, set an explicit list for `target_envs`.
 
 ## Environment Variables
 

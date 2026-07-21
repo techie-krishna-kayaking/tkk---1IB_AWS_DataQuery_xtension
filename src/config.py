@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -48,12 +49,49 @@ def _get_int(key: str, default: int | None = None) -> int:
         raise ConfigError(f"Environment variable {key} must be an integer, got: {raw}") from exc
 
 
+def _candidate_prefixes(normalized_env: str) -> list[str]:
+    # Support aliases like DATA_ANALYST_PREPROD -> PREPROD for JDBC-style keys.
+    parts = [p for p in normalized_env.split("_") if p]
+    if not parts:
+        return [normalized_env]
+
+    prefixes = [normalized_env]
+    for i in range(1, len(parts)):
+        prefixes.append("_".join(parts[i:]))
+    return prefixes
+
+
+def _parse_jdbc_url(jdbc_url: str) -> dict[str, Any]:
+    # Format: jdbc:redshift://host:port/database
+    pattern = r"^jdbc:redshift://([^:/]+):(\d+)/(.+)$"
+    match = re.match(pattern, jdbc_url.strip(), flags=re.IGNORECASE)
+    if not match:
+        raise ConfigError(f"Invalid JDBC URL format: {jdbc_url}")
+
+    host, port_raw, database = match.groups()
+    try:
+        port = int(port_raw)
+    except ValueError as exc:
+        raise ConfigError(f"Invalid port in JDBC URL: {jdbc_url}") from exc
+
+    return {
+        "host": host,
+        "port": port,
+        "database": database,
+    }
+
+
 def list_configured_redshift_envs() -> list[str]:
-    suffix = "REDSHIFT_HOST_"
-    names: list[str] = []
+    names: set[str] = set()
+    redshift_prefix = "REDSHIFT_HOST_"
+    jdbc_suffix = "_JDBC_URL"
+
     for key in os.environ:
-        if key.startswith(suffix):
-            names.append(key[len(suffix):].lower())
+        if key.startswith(redshift_prefix):
+            names.add(key[len(redshift_prefix):].lower())
+        elif key.endswith(jdbc_suffix):
+            names.add(key[: -len(jdbc_suffix)].lower())
+
     return sorted(names)
 
 
@@ -67,7 +105,7 @@ def get_selected_redshift_env() -> str:
         return candidates[0]
 
     raise ConfigError(
-        "No REDSHIFT_ENV selected and no REDSHIFT_HOST_<ENV> variables found in .env"
+        "No REDSHIFT_ENV selected and no REDSHIFT_HOST_<ENV> or <ENV>_JDBC_URL variables found in .env"
     )
 
 
@@ -75,18 +113,53 @@ def get_redshift_config(env_name: str | None = None) -> dict[str, Any]:
     selected = env_name.strip() if env_name else get_selected_redshift_env()
     normalized = _normalize_env_name(selected)
 
-    host = _get_required(f"REDSHIFT_HOST_{normalized}")
-    port = _get_int(f"REDSHIFT_PORT_{normalized}")
-    database = _get_required(f"REDSHIFT_DB_{normalized}")
-    user = _get_required(f"REDSHIFT_USER_{normalized}")
-    password = os.getenv(f"REDSHIFT_PASSWORD_{normalized}", "")
-    schema = os.getenv(f"REDSHIFT_SCHEMA_{normalized}", "public").strip() or "public"
+    # Preferred format (existing): REDSHIFT_HOST_<ENV>, REDSHIFT_PORT_<ENV>, ...
+    host_key = f"REDSHIFT_HOST_{normalized}"
+    if os.getenv(host_key, "").strip():
+        host = _get_required(host_key)
+        port = _get_int(f"REDSHIFT_PORT_{normalized}")
+        database = _get_required(f"REDSHIFT_DB_{normalized}")
+        user = _get_required(f"REDSHIFT_USER_{normalized}")
+        password = os.getenv(f"REDSHIFT_PASSWORD_{normalized}", "")
+        schema = os.getenv(f"REDSHIFT_SCHEMA_{normalized}", "public").strip() or "public"
+
+        return {
+            "env": selected,
+            "host": host,
+            "port": port,
+            "database": database,
+            "user": user,
+            "password": password,
+            "schema": schema,
+        }
+
+    # Compatibility format: <ENV>_JDBC_URL, <ENV>_USER, <ENV>_PASSWORD, <ENV>_SCHEMA
+    matched_prefix = ""
+    jdbc_url = ""
+    for prefix in _candidate_prefixes(normalized):
+        key = f"{prefix}_JDBC_URL"
+        value = os.getenv(key, "").strip()
+        if value:
+            matched_prefix = prefix
+            jdbc_url = value
+            break
+
+    if not jdbc_url:
+        raise ConfigError(
+            f"Missing configuration for env '{selected}'. Expected either "
+            f"REDSHIFT_HOST_{normalized} or one of {', '.join(f'{p}_JDBC_URL' for p in _candidate_prefixes(normalized))}"
+        )
+
+    jdbc = _parse_jdbc_url(jdbc_url)
+    user = _get_required(f"{matched_prefix}_USER")
+    password = os.getenv(f"{matched_prefix}_PASSWORD", "")
+    schema = os.getenv(f"{matched_prefix}_SCHEMA", "public").strip() or "public"
 
     return {
         "env": selected,
-        "host": host,
-        "port": port,
-        "database": database,
+        "host": jdbc["host"],
+        "port": jdbc["port"],
+        "database": jdbc["database"],
         "user": user,
         "password": password,
         "schema": schema,

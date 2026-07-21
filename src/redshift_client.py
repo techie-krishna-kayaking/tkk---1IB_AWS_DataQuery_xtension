@@ -29,7 +29,16 @@ def run_redshift_query(sql: str, env_name: str | None = None) -> pd.DataFrame:
     try:
         with conn.cursor() as cursor:
             if cfg["schema"]:
-                cursor.execute(f"SET search_path TO {cfg['schema']}")
+                try:
+                    cursor.execute(f"SET search_path TO {cfg['schema']}")
+                except Exception as exc:
+                    msg = str(exc).lower()
+                    # Some environments do not have a public/default schema.
+                    # In that case continue without overriding search_path.
+                    if "schema" in msg and "does not exist" in msg:
+                        pass
+                    else:
+                        raise
 
             cursor.execute(sql_text)
 
